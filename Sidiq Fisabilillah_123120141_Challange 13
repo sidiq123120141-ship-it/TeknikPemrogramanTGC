@@ -1,0 +1,89 @@
+import streamlit as st
+import numpy as np
+import matplotlib.pyplot as plt
+from io import BytesIO
+
+st.set_page_config(layout="wide")
+st.title("Plot Seismik Interaktif")
+
+# ----------------------
+# Data contoh (seismik)
+# ----------------------
+nt = 500   # jumlah sampel waktu
+nx = 50    # jumlah trace
+
+time = np.linspace(0, 2, nt)
+data = np.random.randn(nt, nx)
+
+# ----------------------
+# Sidebar controls
+# ----------------------
+st.sidebar.header("Pengaturan Plot")
+
+# Colormap dropdown
+cmap = st.sidebar.selectbox(
+    "Pilih Colormap",
+    options=[
+        "gray", "seismic", "RdBu", "viridis",
+        "plasma", "inferno", "magma", "cividis"
+    ],
+    index=1
+)
+
+# Auto / Manual scale
+scale_mode = st.sidebar.radio(
+    "Mode Skala Amplitudo",
+    options=["Auto", "Manual"],
+    index=0
+)
+
+# Slider vmin / vmax
+vmin = vmax = None
+if scale_mode == "Manual":
+    amp_max = float(np.max(np.abs(data)))
+    vmin, vmax = st.sidebar.slider(
+        "Atur vmin dan vmax",
+        min_value=-amp_max,
+        max_value=amp_max,
+        value=(-amp_max / 2, amp_max / 2)
+    )
+
+# Opsi tambahan: simpan gambar
+save_fig = st.sidebar.button("Simpan Plot sebagai Gambar")
+
+# ----------------------
+# Plot
+# ----------------------
+fig, ax = plt.subplots(figsize=(8, 6))
+
+im = ax.imshow(
+    data,
+    aspect="auto",
+    cmap=cmap,
+    extent=[0, nx, time[-1], time[0]],
+    vmin=vmin,
+    vmax=vmax
+)
+
+ax.set_xlabel("Trace")
+ax.set_ylabel("Waktu (s)")
+ax.set_title("Penampang Seismik")
+
+plt.colorbar(im, ax=ax, label="Amplitudo")
+
+st.pyplot(fig)
+
+# ----------------------
+# Simpan gambar
+# ----------------------
+if save_fig:
+    buf = BytesIO()
+    fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
+    buf.seek(0)
+
+    st.download_button(
+        label="Download Gambar",
+        data=buf,
+        file_name="plot_seismik.png",
+        mime="image/png"
+    )
