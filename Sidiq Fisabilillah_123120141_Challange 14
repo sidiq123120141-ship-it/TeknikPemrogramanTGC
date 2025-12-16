@@ -1,0 +1,97 @@
+import streamlit as st
+import numpy as np
+import matplotlib.pyplot as plt
+from io import BytesIO
+
+st.set_page_config(layout="wide")
+st.title("Peta Anomali Magnetik Interaktif")
+
+# ----------------------
+# Data contoh (anomali magnetik)
+# ----------------------
+ny, nx = 80, 100
+x = np.linspace(0, 1000, nx)
+y = np.linspace(0, 800, ny)
+X, Y = np.meshgrid(x, y)
+
+# Anomali observasi, regional, residual (dummy data)
+obs = 50 * np.sin(X / 200) * np.cos(Y / 150)
+regional = 30 * np.sin(X / 500)
+residual = obs - regional
+
+# ----------------------
+# Sidebar controls
+# ----------------------
+st.sidebar.header("Pengaturan Peta")
+
+# Colormap dropdown
+cmap = st.sidebar.selectbox(
+    "Pilih Colormap",
+    options=[
+        "seismic", "RdBu", "jet", "viridis",
+        "plasma", "inferno", "cividis"
+    ],
+    index=0
+)
+
+# Auto / Manual scale
+scale_mode = st.sidebar.radio(
+    "Mode Skala Anomali",
+    options=["Auto", "Manual"],
+    index=0
+)
+
+# Slider vmin / vmax
+vmin = vmax = None
+if scale_mode == "Manual":
+    global_min = float(min(obs.min(), regional.min(), residual.min()))
+    global_max = float(max(obs.max(), regional.max(), residual.max()))
+
+    vmin, vmax = st.sidebar.slider(
+        "Atur vmin dan vmax (nT)",
+        min_value=global_min,
+        max_value=global_max,
+        value=(global_min / 2, global_max / 2)
+    )
+
+# Opsi tambahan: simpan gambar
+save_fig = st.sidebar.button("Simpan Peta sebagai Gambar")
+
+# ----------------------
+# Plot
+# ----------------------
+fig, axes = plt.subplots(1, 3, figsize=(15, 5), constrained_layout=True)
+
+data_list = [obs, regional, residual]
+titles = ["Anomali Observasi", "Anomali Regional", "Anomali Residual"]
+
+for ax, data, title in zip(axes, data_list, titles):
+    im = ax.imshow(
+        data,
+        cmap=cmap,
+        origin="lower",
+        extent=[x.min(), x.max(), y.min(), y.max()],
+        vmin=vmin,
+        vmax=vmax
+    )
+    ax.set_title(title)
+    ax.set_xlabel("X (m)")
+    ax.set_ylabel("Y (m)")
+    plt.colorbar(im, ax=ax, shrink=0.8, label="Anomali (nT)")
+
+st.pyplot(fig)
+
+# ----------------------
+# Simpan gambar
+# ----------------------
+if save_fig:
+    buf = BytesIO()
+    fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
+    buf.seek(0)
+
+    st.download_button(
+        label="Download Gambar",
+        data=buf,
+        file_name="peta_anomali_magnetik.png",
+        mime="image/png"
+    )
